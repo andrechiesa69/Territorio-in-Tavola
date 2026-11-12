@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2a0f0a">
+<title>Anvein – Anolini in brodo piacentini</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: radial-gradient(circle at 50% 30%, #6b2418 0%, #2a0f0a 70%);
+    font-family: Georgia, "Times New Roman", serif; color: #3b2a1e;
+    -webkit-user-select: none; user-select: none; touch-action: pan-y;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; }
+
+  #bar { flex: 0 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px 6px; }
+  #back {
+    display: inline-block; text-decoration: none; background: #fff; color: #5a1a10;
+    font: 700 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    padding: 10px 18px; border-radius: 24px;
+  }
+  .framed #bar { display: none; }      /* dentro la realtà aumentata il pulsante c'è già */
+
+  #stageArea { flex: 1 1 auto; width: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; }
+  #book { position: relative; perspective: 2200px; }
+
+  .page {
+    position: absolute; inset: 0; overflow: hidden; border-radius: .5em;
+    background: #fbf3df;
+    background-image: linear-gradient(90deg, rgba(90,50,20,.16) 0, rgba(90,50,20,0) 7%), radial-gradient(circle at 30% 20%, #fffaf0, #f5e8c9);
+    box-shadow: 0 .4em 1.4em rgba(0,0,0,.45);
+    padding: 2.1em 1.8em 2.4em 2.1em;
+    transform-origin: left center;
+    transition: transform .75s cubic-bezier(.4,.1,.2,1), box-shadow .75s;
+    -webkit-backface-visibility: hidden; backface-visibility: hidden;
+    transform: rotateY(0deg);
+  }
+  .page.turned { transform: rotateY(-178deg); box-shadow: none; pointer-events: none; }
+
+  .num { position: absolute; bottom: .9em; right: 1.4em; font-size: .7em; color: #a08565; }
+  h1 { font-size: 3.1em; margin: 0; color: #8a1f12; letter-spacing: .04em; line-height: 1; }
+  h2 { font-size: 1.55em; margin: 0 0 .5em; color: #8a1f12; border-bottom: .09em solid #d7b56a; padding-bottom: .25em; }
+  h3 { font-size: 1em; margin: .9em 0 .25em; color: #5a7a2a; text-transform: uppercase; letter-spacing: .08em; }
+  p  { font-size: 1em; line-height: 1.42; margin: 0 0 .65em; }
+  ul { margin: 0; padding-left: 1.15em; font-size: 1em; line-height: 1.45; }
+  .big { font-size: 2.6em; text-align: center; margin: .2em 0 .25em; }
+  .tip { background: #f3e2b4; border-left: .3em solid #d7a53a; padding: .55em .7em; border-radius: .3em; font-size: .9em; line-height: 1.35; margin-top: .6em; }
+  .meta { display: flex; gap: .5em; margin: .6em 0 .2em; }
+  .meta span { flex: 1; background: #8a1f12; color: #fff3d6; border-radius: .4em; text-align: center; padding: .45em .2em; font-size: .78em; line-height: 1.25; }
+  .meta b { display: block; font-size: 1.25em; }
+
+  .cover { background: linear-gradient(160deg, #8a1f12, #4a120b); color: #ffe9b0; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .cover h1 { color: #ffd766; font-size: 4em; text-shadow: 0 .05em .3em rgba(0,0,0,.5); }
+  .cover .sub { font-size: 1.25em; margin-top: .5em; letter-spacing: .05em; }
+  .cover .small { font-size: .85em; opacity: .85; margin-top: 1.6em; letter-spacing: .12em; text-transform: uppercase; }
+  .cover svg { width: 78%; margin: 1.2em 0 .4em; }
+  .cover a { color: #ffd766; }
+  .btn { display: inline-block; margin-top: 1.2em; background: #ffd766; color: #5a1a10 !important; text-decoration: none; font-weight: 700; padding: .7em 1.2em; border-radius: 2em; font-size: .95em; }
+
+  #nav { flex: 0 0 auto; display: flex; align-items: center; gap: 18px; padding: 8px 0 calc(env(safe-area-inset-bottom, 0px) + 12px); color: #fff; font: 600 14px -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  #nav button { appearance: none; -webkit-appearance: none; border: none; width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.16); color: #fff; font-size: 24px; line-height: 1; }
+  #nav button:disabled { opacity: .3; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="bar"><a id="back" href="./index.html">← Torna alla realtà aumentata</a></div>
+
+  <div id="stageArea">
+    <div id="book">
+
+      <section class="page cover">
+        <div class="small">I piatti della tradizione piacentina</div>
+        <svg viewBox="0 0 300 150" aria-hidden="true">
+          <ellipse cx="150" cy="84" rx="132" ry="56" fill="#fbf9f4"/>
+          <ellipse cx="150" cy="80" rx="116" ry="44" fill="#e2b23c"/>
+          <g fill="#f2d766" stroke="#f2d766" stroke-width="7" stroke-dasharray="6 5" stroke-linecap="round">
+            <circle cx="96" cy="78" r="17"/><circle cx="150" cy="62" r="17"/><circle cx="204" cy="80" r="17"/><circle cx="142" cy="100" r="17"/>
+          </g>
+          <g fill="#d9a441" opacity=".75">
+            <circle cx="96" cy="78" r="8"/><circle cx="150" cy="62" r="8"/><circle cx="204" cy="80" r="8"/><circle cx="142" cy="100" r="8"/>
+          </g>
+        </svg>
+        <h1>ANVEIN</h1>
+        <div class="sub">Anolini in brodo</div>
+        <div class="small">Sfoglia →</div>
+      </section>
+
+      <section class="page">
+        <h2>Il piatto della festa</h2>
+        <div class="big">🎄</div>
+        <p>A Piacenza non c'è Natale senza <i>anvein</i>: piccoli anolini di pasta all'uovo che galleggiano in un brodo limpido e dorato.</p>
+        <p>Il loro segreto è il ripieno. Si fa con lo stracotto, un pezzo di manzo che cuoce pianissimo per ore nel vino rosso finché si disfa, unito a Grana Padano, pangrattato e uova.</p>
+        <p>Ogni famiglia ha la sua ricetta e la difende. In Val d'Arda, per esempio, il ripieno è senza carne: solo pangrattato e formaggio.</p>
+        <div class="num">2</div>
+      </section>
+
+      <section class="page">
+        <h2>Ingredienti</h2>
+        <div class="meta"><span><b>6</b>persone</span><span><b>2 giorni</b>meglio se</span><span><b>5 min</b>cottura</span></div>
+        <h3>🥩 Lo stracotto</h3>
+        <ul><li>500 g di polpa di manzo</li><li>carota, sedano, cipolla, 2 spicchi d'aglio</li><li>½ litro di vino rosso</li><li>burro, sale, pepe</li></ul>
+        <h3>🧀 Il ripieno</h3>
+        <ul><li>lo stracotto con il suo sugo</li><li>200 g di Grana Padano</li><li>100 g di pangrattato</li><li>2 uova, noce moscata</li></ul>
+        <h3>🥚 La sfoglia</h3>
+        <ul><li>400 g di farina 00, 4 uova</li></ul>
+        <h3>🍲 Il brodo di terza</h3>
+        <ul><li>manzo, cappone e traversino di vitello</li><li>carota, sedano, cipolla</li></ul>
+        <div class="num">3</div>
+      </section>
+
+      <section class="page">
+        <h2>1 · Lo stracotto</h2>
+        <div class="big">🥩 🍷</div>
+        <p>Rosola il manzo nel burro con carota, sedano, cipolla e aglio a pezzetti, girandolo su tutti i lati.</p>
+        <p>Bagna con il vino rosso, sala, copri e abbassa il fuoco al minimo.</p>
+        <p>Lascialo cuocere almeno 4–5 ore, aggiungendo un mestolo di brodo quando asciuga. È pronto quando la carne si sfalda con la forchetta e il sugo è scuro e denso.</p>
+        <div class="tip"><b>Con calma:</b> preparalo il giorno prima. Riposando, lo stracotto diventa più saporito.</div>
+        <div class="num">4</div>
+      </section>
+
+      <section class="page">
+        <h2>2 · Il brodo di terza</h2>
+        <div class="big">🍲</div>
+        <p>Si chiama "di terza" perché nasce da tre carni: manzo, cappone e traversino di vitello.</p>
+        <p>Mettile in una pentola grande con acqua fredda, carota, sedano e cipolla. Porta a bollore piano e togli la schiuma che sale.</p>
+        <p>Fai sobbollire per circa 3 ore, sala alla fine e filtra. Deve essere limpido, saporito ma delicato.</p>
+        <div class="tip"><b>Per sgrassarlo:</b> fallo raffreddare e togli il grasso che si rapprende in superficie.</div>
+        <div class="num">5</div>
+      </section>
+
+      <section class="page">
+        <h2>3 · Il ripieno</h2>
+        <div class="big">🧀 🥚</div>
+        <p>Trita lo stracotto finissimo con il coltello e raccogli tutto il suo sugo.</p>
+        <p>Bagna il pangrattato con il sugo caldo e qualche cucchiaio di brodo, poi unisci la carne, il Grana Padano grattugiato, le uova e una grattata di noce moscata.</p>
+        <p>Mescola fino a ottenere un impasto sodo e omogeneo. Lascialo riposare qualche ora al fresco.</p>
+        <div class="tip"><b>La prova:</b> deve stare insieme se ne stringi una pallina fra le dita. Se è molle, aggiungi pangrattato.</div>
+        <div class="num">6</div>
+      </section>
+
+      <section class="page">
+        <h2>4 · Gli anolini</h2>
+        <div class="big">🥟</div>
+        <p>Impasta farina e uova, lascia riposare mezz'ora e tira una sfoglia sottile, a strisce larghe una mano.</p>
+        <p>Metti tante palline di ripieno, grandi come una nocciola, in fila su metà striscia. Ripiega l'altra metà sopra e premi bene intorno a ogni pallina.</p>
+        <p>Taglia gli anolini con lo stampino dentellato, di circa 3 cm, e mettili ad asciugare su un canovaccio infarinato.</p>
+        <div class="tip"><b>In compagnia:</b> è un lavoro lungo. Per tradizione si fa tutti insieme attorno al tavolo.</div>
+        <div class="num">7</div>
+      </section>
+
+      <section class="page">
+        <h2>5 · In tavola</h2>
+        <div class="big">🥣</div>
+        <p>Porta il brodo a bollore, versa gli anolini e mescola piano.</p>
+        <p>Cuoci per 4–5 minuti da quando vengono a galla, poi spegni e lascia riposare un minuto.</p>
+        <p>Servili nella zuppiera, ben caldi, con molto brodo e Grana Padano grattugiato a parte.</p>
+        <div class="tip"><b>Anche asciutti:</b> scolati e conditi con burro fuso e Grana Padano sono un'altra festa.</div>
+        <div class="num">8</div>
+      </section>
+
+      <section class="page cover">
+        <div class="big">🍽️</div>
+        <h1 style="font-size:2.6em">Buon appetito!</h1>
+        <div class="sub">Gli anvein sono pronti</div>
+        <a class="btn" id="back2" href="./index.html">← Torna alla realtà aumentata</a>
+      </section>
+
+    </div>
+  </div>
+
+  <div id="nav">
+    <button id="prev" aria-label="Pagina precedente">‹</button>
+    <span id="count"></span>
+    <button id="next" aria-label="Pagina successiva">›</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var framed = window.self !== window.top;
+  if (framed) {
+    document.body.classList.add('framed');
+    document.getElementById('back2').style.display = 'none';
+  }
+
+  var book = document.getElementById('book');
+  var area = document.getElementById('stageArea');
+  var pages = Array.prototype.slice.call(book.querySelectorAll('.page'));
+  var prev = document.getElementById('prev'), next = document.getElementById('next'), count = document.getElementById('count');
+  var cur = 0, RATIO = 0.68;
+
+  pages.forEach(function (p, i) { p.style.zIndex = pages.length - i; });
+
+  function size() {
+    var w = Math.min(area.clientWidth * 0.92, (area.clientHeight - 12) * RATIO, 560);
+    book.style.width = w + 'px';
+    book.style.height = (w / RATIO) + 'px';
+    book.style.fontSize = (w / 23) + 'px';      // tutto il testo scala con la pagina
+  }
+
+  function show() {
+    pages.forEach(function (p, i) { p.classList.toggle('turned', i < cur); });
+    prev.disabled = cur === 0;
+    next.disabled = cur === pages.length - 1;
+    count.textContent = (cur + 1) + ' / ' + pages.length;
+  }
+  function go(d) {
+    var n = Math.max(0, Math.min(pages.length - 1, cur + d));
+    if (n !== cur) { cur = n; show(); }
+  }
+
+  prev.addEventListener('click', function () { go(-1); });
+  next.addEventListener('click', function () { go(1); });
+
+  /* tocco a destra/sinistra della pagina e scorrimento con il dito */
+  var x0 = null, y0 = null;
+  book.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  book.addEventListener('touchend', function (e) {
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy)) { go(dx < 0 ? 1 : -1); swiped = true; }
+    x0 = null;
+  }, { passive: true });
+  var swiped = false;
+  book.addEventListener('click', function (e) {
+    if (swiped) { swiped = false; return; }
+    if (e.target.closest('a')) return;
+    var r = book.getBoundingClientRect();
+    go(e.clientX > r.left + r.width / 2 ? 1 : -1);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') go(1);
+    if (e.key === 'ArrowLeft') go(-1);
+  });
+
+  window.addEventListener('resize', size);
+  window.addEventListener('orientationchange', function () { setTimeout(size, 200); });
+  size(); show();
+})();
+</script>
+</body>
+</html>
