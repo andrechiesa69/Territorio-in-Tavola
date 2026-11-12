@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Pisarei e Fasö – Realtà Aumentata</title>
+
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    overflow: hidden; background: #000; color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-user-select: none; user-select: none; touch-action: manipulation;
+  }
+  #ar { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+
+  /* ---------- schermata iniziale ---------- */
+  #start {
+    position: fixed; inset: 0; z-index: 30;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px; text-align: center;
+    background: radial-gradient(circle at 50% 35%, #7a2a1c 0%, #3a120c 55%, #150604 100%);
+  }
+  #start h1 { font-family: Georgia, "Times New Roman", serif; font-size: 34px; margin: 0 0 6px; letter-spacing: 1px; color: #ffd98a; }
+  #start p { font-size: 16px; line-height: 1.45; max-width: 320px; margin: 10px 0 26px; opacity: .9; }
+  #startBtn {
+    appearance: none; -webkit-appearance: none; border: 2px solid #fff; background: #fff; color: #5a1a10;
+    font-size: 17px; font-weight: 700; letter-spacing: .5px; padding: 15px 30px; border-radius: 40px;
+  }
+  #startBtn:active { transform: scale(.97); }
+  #msg { margin-top: 18px; font-size: 14px; min-height: 20px; color: #ffd0c0; max-width: 320px; }
+
+  /* ---------- mirino di scansione ---------- */
+  #scan {
+    position: fixed; inset: 0; z-index: 20; pointer-events: none;
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+  }
+  #scan.on { display: flex; }
+  #frame {
+    position: relative;
+    width: min(64vw, 37vh);          /* proporzione della pagina (circa 0,58) */
+    aspect-ratio: 361 / 622;
+    box-shadow: 0 0 0 200vmax rgba(0,0,0,.38);
+    border-radius: 6px;
+  }
+  #frame i {
+    position: absolute; width: 44px; height: 44px; border: 5px solid #fff;
+    filter: drop-shadow(0 0 4px rgba(0,0,0,.6));
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  #frame i:nth-child(1) { top: -3px; left: -3px;  border-right: none; border-bottom: none; border-top-left-radius: 10px; }
+  #frame i:nth-child(2) { top: -3px; right: -3px; border-left: none;  border-bottom: none; border-top-right-radius: 10px; }
+  #frame i:nth-child(3) { bottom: -3px; left: -3px;  border-right: none; border-top: none; border-bottom-left-radius: 10px; }
+  #frame i:nth-child(4) { bottom: -3px; right: -3px; border-left: none;  border-top: none; border-bottom-right-radius: 10px; }
+  #line {
+    position: absolute; left: 6%; right: 6%; height: 3px; top: 0; border-radius: 3px;
+    background: linear-gradient(90deg, transparent, #fff, transparent);
+    box-shadow: 0 0 12px 2px rgba(255,255,255,.8);
+    animation: sweep 2.4s ease-in-out infinite;
+  }
+  #scanTxt {
+    position: relative; margin-top: 26px; font-size: 16px; font-weight: 600;
+    background: rgba(0,0,0,.55); padding: 9px 18px; border-radius: 22px;
+  }
+  @keyframes sweep { 0%,100% { top: 3%; } 50% { top: 96%; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+
+  /* ---------- suggerimenti / pulsanti ---------- */
+  #hint {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); z-index: 21; pointer-events: none;
+    font-size: 15px; font-weight: 600; background: rgba(0,0,0,.6); padding: 10px 18px; border-radius: 22px;
+    opacity: 0; transition: opacity .4s; white-space: nowrap;
+  }
+  #hint.on { opacity: 1; }
+  #replay {
+    position: fixed; z-index: 22; right: 14px; top: calc(env(safe-area-inset-top, 0px) + 14px);
+    appearance: none; -webkit-appearance: none; border: none; color: #fff; background: rgba(0,0,0,.55);
+    font-size: 14px; font-weight: 600; padding: 9px 14px; border-radius: 20px; display: none;
+  }
+  #replay.on { display: block; }
+</style>
+
+<!-- compatibilità importmap per iOS/Android meno recenti -->
+<script async src="https://unpkg.com/es-module-shims@1.8.3/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
+</head>
+
+<body>
+<div id="ar"></div>
+
+<div id="start">
+  <h1>Pisarei e Fasö</h1>
+  <p>Consenti l'uso della fotocamera e inquadra la pagina della rivista per vedere nascere il piatto.</p>
+  <button id="startBtn">AVVIA L'ESPERIENZA</button>
+  <div id="msg"></div>
+</div>
+
+<div id="scan">
+  <div id="frame"><i></i><i></i><i></i><i></i><div id="line"></div></div>
+  <div id="scanTxt">Inquadra la pagina</div>
+</div>
+
+<div id="hint">👆 Tocca la scritta per sfogliare</div>
+<button id="replay">↻ Rivedi</button>
+
+<script type="module">
+import * as THREE from 'three';
+import { MindARThree } from 'mindar-image-three';
+
+/* =====================  IMPOSTAZIONI  ===================== */
+const TARGET_FILE = './targets.mind';                                   // stesso livello di index.html
+const LINK_URL    = 'https://heyzine.com/flip-book/9d2a4126bd.html';
+const TITLE_TEXT  = 'PISAREI E FASÖ';
+
+/* =====================  UTILITÀ  ===================== */
+const $ = id => document.getElementById(id);
+const clamp = x => Math.min(1, Math.max(0, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const ease = k => k * k * (3 - 2 * k);
+const easeOut = k => 1 - Math.pow(1 - k, 3);
+const easeBack = k => { const c = 1.70158; const x = k - 1; return 1 + (c + 1) * x * x * x + c * x * x; };
+const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
+
+/* =====================  AVVIO  ===================== */
+const startBtn = $('startBtn'), msg = $('msg');
+let started = false;
+
+startBtn.addEventListener('click', async () => {
+  if (started) return;
+  started = true;
+  startBtn.disabled = true;
+  msg.textContent = 'Caricamento…';
+  try {
+    await run();
+    $('start').style.display = 'none';
+    $('scan').classList.add('on');
+  } catch (e) {
+    console.error(e);
+    started = false;
+    startBtn.disabled = false;
+    msg.textContent = 'Impossibile avviare la fotocamera. Consenti l\'accesso e apri la pagina in Safari (iPhone) o Chrome (Android).';
+  }
+});
+
+async function run() {
+  const mindar = new MindARThree({
+    container: $('ar'),
+    imageTargetSrc: TARGET_FILE,
+    uiScanning: 'no', uiLoading: 'no', uiError: 'no',
+    filterMinCF: 0.0005, filterBeta: 0.005,       // movimento più stabile
+    warmupTolerance: 3, missTolerance: 10
+  });
+  const { renderer, scene, camera } = mindar;
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x6b5340, 1.9));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+  sun.position.set(0.4, 1, 1.2);
+  scene.add(sun);
+
+  const anchor = mindar.addAnchor(0);
+  const world = buildWorld(anchor.group);
+
+  let visible = false;
+  anchor.onTargetFound = () => { visible = true;  $('scan').classList.remove('on'); };
+  anchor.onTargetLost  = () => { visible = false; $('scan').classList.add('on'); $('hint').classList.remove('on'); };
+
+  /* ---- tocco sulla scritta ---- */
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  $('ar').addEventListener('click', ev => {
+    if (!visible || !world.titleReady()) return;
+    const r = renderer.domElement.getBoundingClientRect();
+    ndc.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+    ndc.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+    ray.setFromCamera(ndc, camera);
+    if (ray.intersectObject(world.hit, false).length) window.location.href = LINK_URL;
+  });
+
+  $('replay').addEventListener('click', () => { time = 0; });
+
+  await mindar.start();
+
+  let time = 0, last = performance.now();
+  renderer.setAnimationLoop(() => {
+    const now = performance.now();
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (visible) {
+      time += dt;                         // l'animazione avanza solo con la pagina inquadrata
+      world.update(time, now / 1000);
+      $('hint').classList.toggle('on', world.titleReady());
+      $('replay').classList.toggle('on', time > 19);
+    } else {
+      $('replay').classList.remove('on');
+    }
+    renderer.render(scene, camera);
+  });
+
+  document.addEventListener('visibilitychange', () => { last = performance.now(); });
+}
+
+/* =====================  TEXTURE GENERATE (nessun file esterno)  ===================== */
+function canvasTex(w, h, draw, srgb = true) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function beanTexture() {            // borlotti: fondo bordeaux con screziature color nocciola
+  return canvasTex(256, 128, (g, w, h) => {
+    g.fillStyle = '#7b2632'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 90; i++) {
+      g.strokeStyle = ['#d8a56a', '#c98a55', '#e3b98a', '#5a1722'][i % 4];
+      g.globalAlpha = rnd(0.5, 0.95);
+      g.lineWidth = rnd(1.5, 5);
+      g.beginPath();
+      const x = rnd(0, w), y = rnd(0, h);
+      g.moveTo(x, y);
+      g.quadraticCurveTo(x + rnd(-14, 14), y + rnd(-10, 10), x + rnd(-26, 26), y + rnd(-8, 8));
+      g.stroke();
+    }
+  });
+}
+
+function glowTexture() {
+  return canvasTex(256, 256, (g, w) => {
+    const r = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    r.addColorStop(0, 'rgba(255,250,225,1)');
+    r.addColorStop(0.35, 'rgba(255,215,130,0.55)');
+    r.addColorStop(1, 'rgba(255,180,60,0)');
+    g.fillStyle = r; g.fillRect(0, 0, w, w);
+  });
+}
+
+function raysTexture() {
+  return canvasTex(512, 512, (g, w) => {
+    g.translate(w / 2, w / 2);
+    const r = g.createRadialGradient(0, 0, 10, 0, 0, w / 2);
+    r.addColorStop(0, 'rgba(255,240,190,0.9)');
+    r.addColorStop(1, 'rgba(255,220,140,0)');
+    g.fillStyle = r;
+    const n = 18;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2, s = (i % 2 ? 0.05 : 0.09);
+      g.beginPath(); g.moveTo(0, 0);
+      g.lineTo(Math.cos(a - s) * w, Math.sin(a - s) * w);
+      g.lineTo(Math.cos(a + s) * w, Math.sin(a + s) * w);
+      g.closePath(); g.fill();
+    }
+  });
+}
+
+function softTexture() {
+  return canvasTex(128, 128, (g, w) => {
+    const r = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    r.addColorStop(0, 'rgba(255,255,255,0.9)');
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r; g.fillRect(0, 0, w, w);
+  });
+}
+
+function titleTexture() {
+  return canvasTex(1024, 256, (g, w, h) => {
+    let size = 150;
+    const font = s => `900 ${s}px Georgia, "Times New Roman", serif`;
+    g.font = font(size);
+    const mw = g.measureText(TITLE_TEXT).width;
+    if (mw > w * 0.9) size = Math.floor(size * (w * 0.9) / mw);
+    g.font = font(size);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    const x = w / 2, y = h / 2 + 4;
+    g.shadowColor = 'rgba(255,200,90,0.95)'; g.shadowBlur = 34;       // alone luminoso
+    g.strokeStyle = '#5a1509'; g.lineWidth = 14; g.strokeText(TITLE_TEXT, x, y);
+    g.shadowBlur = 0;
+    g.strokeStyle = '#5a1509'; g.lineWidth = 10; g.strokeText(TITLE_TEXT, x, y);
+    const gr = g.createLinearGradient(0, y - size / 2, 0, y + size / 2);
+    gr.addColorStop(0, '#fffbe6'); gr.addColorStop(0.5, '#ffd766'); gr.addColorStop(1, '#f29a1f');
+    g.fillStyle = gr; g.fillText(TITLE_TEXT, x, y);
+  }, false);
+}
+
+/* =====================  SCENA  ===================== */
+function buildWorld(root) {
+  // tempi (secondi)
+  const T = {
+    flour: 0, water: [2.6, 5.0], mix: [4.6, 7.2], dough: [5.2, 7.2], shape: [7.2, 8.8],
+    pot: [8.2, 9.2], boardOut: [9.0, 9.8], drop: 9.4, beans: 12.0,
+    sauce: [14.5, 17.4], title: 17.8
+  };
+
+  // "palco" inclinato verso chi guarda, davanti alla pagina (larghezza pagina = 1)
+  const stage = new THREE.Group();
+  stage.position.set(0, -0.52, 0.06);
+  stage.rotation.x = 0.42;
+  root.add(stage);
+
+  const dummy = new THREE.Object3D();
+  const put = (mesh, i, x, y, z, s = 1, rx = 0, ry = 0, rz = 0) => {
+    dummy.position.set(x, y, z); dummy.rotation.set(rx, ry, rz); dummy.scale.setScalar(s);
+    dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
+  };
+  const instanced = (geo, mat, n) => {
+    const m = new THREE.InstancedMesh(geo, mat, n);
+    m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    stage.add(m); return m;
+  };
+
+  /* ---- tagliere ---- */
+  const BOARD_Y = 0.60, BOARD_TOP = BOARD_Y + 0.012;
+  const boardMat = new THREE.MeshStandardMaterial({ color: 0xb98a55, roughness: 0.8, transparent: true });
+  const board = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.024, 40), boardMat);
+  board.position.y = BOARD_Y; stage.add(board);
+
+  /* ---- farina ---- */
+  const NF = 320;
+  const flourMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, transparent: true });
+  const flour = instanced(new THREE.IcosahedronGeometry(0.011, 0), flourMat, NF);
+  const fl = [];
+  for (let i = 0; i < NF; i++) {
+    const r = 0.17 * Math.sqrt(Math.random()), a = rnd(0, Math.PI * 2);
+    fl.push({ d: rnd(0, 2.1), r, a, sx: rnd(-0.05, 0.05), sz: rnd(-0.05, 0.05), sy: rnd(1.25, 1.45),
+              ey: BOARD_TOP + 0.10 * (1 - r / 0.17) * rnd(0.2, 1), s: rnd(0.6, 1.3) });
+  }
+
+  /* ---- acqua ---- */
+  const NW = 70;
+  const water = instanced(new THREE.SphereGeometry(0.012, 8, 6),
+    new THREE.MeshStandardMaterial({ color: 0x8fd4ff, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.85 }), NW);
+  const wa = Array.from({ length: NW }, () => ({ ph: Math.random(), jx: rnd(-0.015, 0.015), jz: rnd(-0.015, 0.015), s: rnd(0.6, 1.2) }));
+
+  /* ---- impasto ---- */
+  const dough = new THREE.Mesh(new THREE.SphereGeometry(0.12, 24, 16),
+    new THREE.MeshStandardMaterial({ color: 0xe3cfa3, roughness: 0.85 }));
+  dough.position.y = BOARD_TOP + 0.06; stage.add(dough);
+
+  /* ---- pisarei: gnocchetti a conchiglia incavata ---- */
+  const NP = 42;
+  const sh = new THREE.Shape();
+  sh.absarc(0, 0, 0.017, 0.75, Math.PI * 2 - 0.75, false);
+  sh.absarc(0, 0, 0.008, Math.PI * 2 - 0.75, 0.75, true);
+  const pisGeo = new THREE.ExtrudeGeometry(sh, { depth: 0.052, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 2, curveSegments: 10 });
+  pisGeo.center();
+  const pisMat = new THREE.MeshStandardMaterial({ color: 0xe6d3aa, roughness: 0.8 });
+  const pis = instanced(pisGeo, pisMat, NP);
+  const POT_R = 0.165;
+  const potSpot = () => { const r = POT_R * Math.sqrt(Math.random()), a = rnd(0, Math.PI * 2);
+                          return { x: Math.cos(a) * r, z: Math.sin(a) * r, y: rnd(0.045, 0.085) }; };
+  const pi = [];
+  for (let i = 0; i < NP; i++) {
+    const r = 0.25 * Math.sqrt((i + 0.5) / NP), a = i * 2.39996;
+    pi.push({ bx: Math.cos(a) * r, bz: Math.sin(a) * r, p: potSpot(), d: rnd(0, 1.6), dl: rnd(0, 0.6),
+              rx: rnd(0, 6.28), ry: rnd(0, 6.28), rz: rnd(0, 6.28), j: rnd(-0.012, 0.012) });
+  }
+
+  /* ---- fagioli borlotti ---- */
+  const NB = 30;
+  const beanGeo = new THREE.SphereGeometry(0.021, 14, 10); beanGeo.scale(1.75, 1, 0.85);
+  const beanMat = new THREE.MeshStandardMaterial({ map: beanTexture(), roughness: 0.45 });
+  const beans = instanced(beanGeo, beanMat, NB);
+  const be = Array.from({ length: NB }, () => ({ p: potSpot(), d: rnd(0, 1.8), h: rnd(1.0, 1.3),
+              rx: rnd(0, 6.28), ry: rnd(0, 6.28), rz: rnd(0, 6.28), j: rnd(-0.012, 0.014) }));
+
+  /* ---- pentolino di ceramica ---- */
+  const pot = new THREE.Group(); stage.add(pot);
+  const V = (x, y) => new THREE.Vector2(x, y);
+  const outer = new THREE.Mesh(
+    new THREE.LatheGeometry([V(0, 0), V(0.20, 0), V(0.225, 0.012), V(0.295, 0.185), V(0.302, 0.20)], 48),
+    new THREE.MeshStandardMaterial({ color: 0x2a1710, roughness: 0.3, metalness: 0.15, side: THREE.DoubleSide }));
+  const inner = new THREE.Mesh(
+    new THREE.LatheGeometry([V(0.302, 0.20), V(0.292, 0.207), V(0.278, 0.20), V(0.205, 0.03), V(0, 0.03)], 48),
+    new THREE.MeshStandardMaterial({ color: 0xa8502c, roughness: 0.45, side: THREE.DoubleSide }));
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.034, 0.24, 16),
+    new THREE.MeshStandardMaterial({ color: 0x1c0f0a, roughness: 0.3, metalness: 0.15 }));
+  handle.position.set(-0.385, 0.165, 0.03); handle.rotation.z = Math.PI / 2 - 0.22;
+  pot.add(outer, inner, handle);
+
+  /* ---- sugo ---- */
+  const sauceMat = new THREE.MeshStandardMaterial({ color: 0xc8421c, roughness: 0.3 });
+  const sauce = new THREE.Mesh(new THREE.CircleGeometry(1, 48), sauceMat);
+  sauce.rotation.x = -Math.PI / 2; pot.add(sauce);
+  const NS = 70;
+  const drops = instanced(new THREE.SphereGeometry(0.017, 8, 6),
+    new THREE.MeshStandardMaterial({ color: 0xd23a17, roughness: 0.25 }), NS);
+  const sd = Array.from({ length: NS }, () => ({ ph: Math.random(), jx: rnd(-0.02, 0.02), jz: rnd(-0.02, 0.02), s: rnd(0.6, 1.3) }));
+
+  /* ---- vapore ---- */
+  const soft = softTexture();
+  const steam = Array.from({ length: 6 }, (_, i) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, transparent: true, opacity: 0, depthWrite: false }));
+    s.userData = { ph: i / 6, x: rnd(-0.12, 0.12) }; stage.add(s); return s;
+  });
+
+  /* ---- scritta luminosa (sempre rivolta verso chi guarda) ---- */
+  const title = new THREE.Group();
+  title.position.set(0, 0.02, 0.36);
+  root.add(title);
+  const addMat = tex => new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+  const rays = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.25), addMat(raysTexture()));
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.62), addMat(glowTexture()));
+  const txtMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, depthTest: false,
+    uniforms: { map: { value: titleTexture() }, time: { value: 0 }, opacity: { value: 1 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    fragmentShader: `
+      precision mediump float;
+      uniform sampler2D map; uniform float time; uniform float opacity; varying vec2 vUv;
+      void main(){
+        vec4 t = texture2D(map, vUv);
+        float p = mod(time * 0.55, 2.2) - 0.5;                       // fascio di luce che scorre
+        float band = smoothstep(0.13, 0.0, abs(vUv.x + (vUv.y - 0.5) * 0.35 - p));
+        vec3 c = t.rgb + band * vec3(1.0, 0.96, 0.8) * 0.85 * t.a;
+        gl_FragColor = vec4(c, t.a * opacity);
+      }`
+  });
+  const txt = new THREE.Mesh(new THREE.PlaneGeometry(0.98, 0.245), txtMat);
+  const hit = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.42), new THREE.MeshBasicMaterial({ visible: false }));
+  rays.renderOrder = 10; glow.renderOrder = 11; txt.renderOrder = 12;
+  title.add(rays, glow, txt, hit);
+
+  const cWhite = new THREE.Color(0xffffff), cDough = new THREE.Color(0xe3cfa3);
+  const cPis = new THREE.Color(0xe6d3aa), cPisS = new THREE.Color(0xe09a58);
+  const cBeanS = new THREE.Color(0xffc9a0);
+  let titleOn = false;
+
+  function update(t, clock) {
+    /* tagliere */
+    const bo = seg(t, 0, 0.5) * (1 - seg(t, ...T.boardOut));
+    board.visible = bo > 0.01; boardMat.opacity = bo;
+
+    /* farina */
+    const m = seg(t, ...T.mix), wet = seg(t, ...T.water);
+    flour.visible = m < 1;
+    if (flour.visible) {
+      flourMat.color.copy(cWhite).lerp(cDough, wet);
+      flourMat.opacity = 1 - m * m;
+      for (let i = 0; i < NF; i++) {
+        const f = fl[i], p = clamp((t - f.d) / 0.8);
+        if (t < f.d) { put(flour, i, 0, 0, 0, 0); continue; }
+        const k = p * p, ang = f.a + m * m * 11, rad = f.r * (1 - 0.8 * m);
+        const ex = Math.cos(ang) * rad, ez = Math.sin(ang) * rad;
+        put(flour, i, lerp(f.sx, ex, k), lerp(f.sy, f.ey, k), lerp(f.sz, ez, k), f.s * (1 - 0.6 * m), f.a, f.a * 2, 0);
+      }
+      flour.instanceMatrix.needsUpdate = true;
+    }
+
+    /* acqua */
+    const wOn = t > T.water[0] && t < T.water[1];
+    water.visible = wOn;
+    if (wOn) {
+      for (let i = 0; i < NW; i++) {
+        const w = wa[i], raw = (t - T.water[0]) * 1.7 + w.ph, u = raw % 1;
+        const endCut = (T.water[1] - t) * 1.7 < (1 - u) ? 0 : 1;
+        put(water, i, lerp(0.30, 0.0, u) + w.jx, lerp(1.25, BOARD_TOP + 0.04, u * u), w.jz, raw < 1 ? 0 : w.s * endCut);
+      }
+      water.instanceMatrix.needsUpdate = true;
+    }
+
+    /* impasto */
+    const ds = easeOut(seg(t, ...T.dough)) * (1 - ease(seg(t, T.shape[0], T.shape[1] - 0.2)));
+    dough.visible = ds > 0.01;
+    dough.scale.set(ds * (1 + 0.07 * Math.sin(t * 9)), ds * 0.62 * (1 + 0.07 * Math.cos(t * 9)), ds);
+    dough.rotation.y = t * 3.5;
+
+    /* pentolino */
+    const ps = easeBack(seg(t, ...T.pot));
+    pot.visible = t > T.pot[0]; pot.scale.setScalar(Math.max(0.001, ps));
+
+    /* sugo */
+    const sk = ease(seg(t, T.sauce[0] + 0.3, T.sauce[1]));
+    const sy = lerp(0.032, 0.145, sk);
+    sauce.visible = t > T.sauce[0] + 0.3;
+    sauce.position.y = sy; sauce.scale.setScalar(0.203 + 0.073 * ((sy - 0.03) / 0.17) - 0.004);
+    const sOn = t > T.sauce[0] && t < T.sauce[1] - 0.3;
+    drops.visible = sOn;
+    if (sOn) {
+      for (let i = 0; i < NS; i++) {
+        const d = sd[i], raw = (t - T.sauce[0]) * 1.5 + d.ph, u = raw % 1;
+        const endCut = (T.sauce[1] - 0.3 - t) * 1.5 < (1 - u) ? 0 : 1;
+        put(drops, i, lerp(-0.26, 0.0, u) + d.jx, lerp(1.05, sy, u * u), d.jz, raw < 1 ? 0 : d.s * endCut);
+      }
+      drops.instanceMatrix.needsUpdate = true;
+    }
+
+    /* pisarei */
+    pis.visible = t > T.shape[0];
+    if (pis.visible) {
+      pisMat.color.copy(cPis).lerp(cPisS, sk);
+      for (let i = 0; i < NP; i++) {
+        const q = pi[i];
+        const f = easeOut(clamp((t - T.shape[0] - q.dl) / 0.9));
+        const p = clamp((t - T.drop - q.d) / 0.9), k = p * p;
+        const by = BOARD_TOP + 0.016;
+        let x = lerp(q.bx * f, q.p.x, p), z = lerp(q.bz * f, q.p.z, p);
+        let y = lerp(by + (1 - f) * 0.05, q.p.y, k) + Math.sin(Math.PI * p) * 0.12;
+        if (p >= 1) y = Math.max(q.p.y, sy - 0.006 + q.j);
+        put(pis, i, x, y, z, f, q.rx + p * 5, q.ry, q.rz + p * 3);
+      }
+      pis.instanceMatrix.needsUpdate = true;
+    }
+
+    /* fagioli */
+    beans.visible = t > T.beans;
+    if (beans.visible) {
+      beanMat.color.copy(cWhite).lerp(cBeanS, sk);
+      for (let i = 0; i < NB; i++) {
+        const b = be[i], p = clamp((t - T.beans - b.d) / 0.75);
+        if (t < T.beans + b.d) { put(beans, i, 0, 0, 0, 0); continue; }
+        let y = lerp(b.h, b.p.y + 0.02, p * p);
+        if (p >= 1) y = Math.max(b.p.y + 0.02, sy - 0.004 + b.j);
+        put(beans, i, b.p.x * lerp(1.4, 1, p), y, b.p.z * lerp(1.4, 1, p), 1, b.rx + p * 6, b.ry, b.rz + p * 4);
+      }
+      beans.instanceMatrix.needsUpdate = true;
+    }
+
+    /* vapore */
+    const so = seg(t, T.sauce[1], T.sauce[1] + 1);
+    for (const s of steam) {
+      const u = (clock * 0.28 + s.userData.ph) % 1;
+      s.visible = so > 0;
+      s.position.set(s.userData.x + Math.sin(u * 6 + s.userData.ph * 9) * 0.03, 0.2 + u * 0.35, 0);
+      s.scale.setScalar(0.1 + u * 0.14);
+      s.material.opacity = so * 0.32 * Math.sin(Math.PI * u);
+    }
+
+    /* scritta */
+    const tp = seg(t, T.title, T.title + 0.9);
+    titleOn = tp > 0.6;
+    title.visible = tp > 0;
+    if (title.visible) {
+      const s = Math.max(0.001, easeBack(tp));
+      txt.scale.setScalar(s);
+      txtMat.uniforms.time.value = clock;
+      txtMat.uniforms.opacity.value = clamp(tp * 2);
+      const burst = 1 - easeOut(seg(t, T.title, T.title + 1.6));          // lampo iniziale
+      glow.scale.setScalar(s * (1 + burst * 1.6 + 0.06 * Math.sin(clock * 3)));
+      glow.material.opacity = clamp(tp * 2) * (0.55 + 0.45 * burst + 0.12 * Math.sin(clock * 3));
+      rays.scale.setScalar(s * (1 + burst * 0.8));
+      rays.rotation.z = clock * 0.25;
+      rays.material.opacity = clamp(tp * 2) * (0.28 + 0.5 * burst);
+    }
+  }
+
+  update(0, 0);
+  return { update, hit, titleReady: () => titleOn };
+}
+</script>
+</body>
+</html>
