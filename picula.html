@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2a0f0a">
+<title>Picula 'd caval – Il ragù di cavallo piacentino</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: radial-gradient(circle at 50% 30%, #6b2418 0%, #2a0f0a 70%);
+    font-family: Georgia, "Times New Roman", serif; color: #3b2a1e;
+    -webkit-user-select: none; user-select: none; touch-action: pan-y;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; }
+
+  #bar { flex: 0 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px 6px; }
+  #back {
+    display: inline-block; text-decoration: none; background: #fff; color: #5a1a10;
+    font: 700 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    padding: 10px 18px; border-radius: 24px;
+  }
+  .framed #bar { display: none; }      /* dentro la realtà aumentata il pulsante c'è già */
+
+  #stageArea { flex: 1 1 auto; width: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; }
+  #book { position: relative; perspective: 2200px; }
+
+  .page {
+    position: absolute; inset: 0; overflow: hidden; border-radius: .5em;
+    background: #fbf3df;
+    background-image: linear-gradient(90deg, rgba(90,50,20,.16) 0, rgba(90,50,20,0) 7%), radial-gradient(circle at 30% 20%, #fffaf0, #f5e8c9);
+    box-shadow: 0 .4em 1.4em rgba(0,0,0,.45);
+    padding: 2.1em 1.8em 2.4em 2.1em;
+    transform-origin: left center;
+    transition: transform .75s cubic-bezier(.4,.1,.2,1), box-shadow .75s;
+    -webkit-backface-visibility: hidden; backface-visibility: hidden;
+    transform: rotateY(0deg);
+  }
+  .page.turned { transform: rotateY(-178deg); box-shadow: none; pointer-events: none; }
+
+  .num { position: absolute; bottom: .9em; right: 1.4em; font-size: .7em; color: #a08565; }
+  h1 { font-size: 3.1em; margin: 0; color: #8a1f12; letter-spacing: .04em; line-height: 1; }
+  h2 { font-size: 1.55em; margin: 0 0 .5em; color: #8a1f12; border-bottom: .09em solid #d7b56a; padding-bottom: .25em; }
+  h3 { font-size: 1em; margin: .9em 0 .25em; color: #5a7a2a; text-transform: uppercase; letter-spacing: .08em; }
+  p  { font-size: 1em; line-height: 1.42; margin: 0 0 .65em; }
+  ul { margin: 0; padding-left: 1.15em; font-size: 1em; line-height: 1.45; }
+  .big { font-size: 2.6em; text-align: center; margin: .2em 0 .25em; }
+  .tip { background: #f3e2b4; border-left: .3em solid #d7a53a; padding: .55em .7em; border-radius: .3em; font-size: .9em; line-height: 1.35; margin-top: .6em; }
+  .meta { display: flex; gap: .5em; margin: .6em 0 .2em; }
+  .meta span { flex: 1; background: #8a1f12; color: #fff3d6; border-radius: .4em; text-align: center; padding: .45em .2em; font-size: .78em; line-height: 1.25; }
+  .meta b { display: block; font-size: 1.25em; }
+
+  .cover { background: linear-gradient(160deg, #8a1f12, #4a120b); color: #ffe9b0; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .cover h1 { color: #ffd766; font-size: 4em; text-shadow: 0 .05em .3em rgba(0,0,0,.5); }
+  .cover .sub { font-size: 1.25em; margin-top: .5em; letter-spacing: .05em; }
+  .cover .small { font-size: .85em; opacity: .85; margin-top: 1.6em; letter-spacing: .12em; text-transform: uppercase; }
+  .cover svg { width: 78%; margin: 1.2em 0 .4em; }
+  .cover a { color: #ffd766; }
+  .btn { display: inline-block; margin-top: 1.2em; background: #ffd766; color: #5a1a10 !important; text-decoration: none; font-weight: 700; padding: .7em 1.2em; border-radius: 2em; font-size: .95em; }
+
+  #nav { flex: 0 0 auto; display: flex; align-items: center; gap: 18px; padding: 8px 0 calc(env(safe-area-inset-bottom, 0px) + 12px); color: #fff; font: 600 14px -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  #nav button { appearance: none; -webkit-appearance: none; border: none; width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.16); color: #fff; font-size: 24px; line-height: 1; }
+  #nav button:disabled { opacity: .3; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="bar"><a id="back" href="./index.html">← Torna alla realtà aumentata</a></div>
+
+  <div id="stageArea">
+    <div id="book">
+
+      <section class="page cover">
+        <div class="small">I piatti della tradizione piacentina</div>
+        <svg viewBox="0 0 300 150" aria-hidden="true">
+          <ellipse cx="150" cy="84" rx="138" ry="54" fill="#f7f5f0"/>
+          <ellipse cx="150" cy="82" rx="112" ry="38" fill="#c98a2e"/>
+          <ellipse cx="150" cy="80" rx="96" ry="30" fill="#5c3b28"/>
+          <g fill="#7a4d33"><circle cx="100" cy="78" r="9"/><circle cx="128" cy="68" r="9"/><circle cx="160" cy="64" r="9"/><circle cx="192" cy="72" r="9"/><circle cx="140" cy="90" r="9"/><circle cx="176" cy="92" r="9"/><circle cx="210" cy="86" r="8"/><circle cx="112" cy="94" r="8"/></g>
+          <g><rect x="118" y="80" width="12" height="6" rx="2" fill="#e8822a"/><rect x="170" y="78" width="12" height="6" rx="2" fill="#c8281e"/><rect x="146" y="74" width="12" height="6" rx="2" fill="#e9b824"/><rect x="196" y="84" width="10" height="5" rx="2" fill="#e8822a"/><rect x="92" y="86" width="10" height="5" rx="2" fill="#c8281e"/></g>
+        </svg>
+        <h1 style="font-size:3.1em">PICULA 'D CAVAL</h1>
+        <div class="sub">Il ragù di cavallo</div>
+        <div class="small">Sfoglia →</div>
+      </section>
+
+      <section class="page">
+        <h2>Il piatto dei facchini</h2>
+        <div class="big">🐴</div>
+        <p>La picula 'd caval è un ragù di carne di cavallo macinata, cotto piano con cipolla, peperoni e pomodoro. Un piatto povero, dal sapore deciso.</p>
+        <p>Fino a non molti anni fa le trattorie vicino al mercato ortofrutticolo di Piacenza la servivano già all'alba a facchini e autisti, che avevano bisogno di forza per la giornata.</p>
+        <p>In dialetto "picula" vuol dire porzione: una porzione di cavallo. Oggi è una De.Co. del Comune di Piacenza e si mangia quasi sempre con la polenta.</p>
+        <div class="num">2</div>
+      </section>
+
+      <section class="page">
+        <h2>Ingredienti</h2>
+        <div class="meta"><span><b>4</b>persone</span><span><b>20 min</b>preparazione</span><span><b>1 h</b>cottura</span></div>
+        <h3>🥩 La carne</h3>
+        <ul><li>500 g di carne di cavallo macinata</li></ul>
+        <h3>🧄 La pistà ad grass</h3>
+        <ul><li>50 g di lardo</li><li>1 spicchio d'aglio</li><li>un ciuffo di prezzemolo</li></ul>
+        <h3>🫑 Le verdure</h3>
+        <ul><li>1 cipolla, 2 carote</li><li>2 peperoni, uno rosso e uno giallo</li><li>250 g di passata di pomodoro</li></ul>
+        <h3>🍷 E poi</h3>
+        <ul><li>1 bicchiere di vino bianco secco</li><li>olio, sale e pepe</li></ul>
+        <div class="num">3</div>
+      </section>
+
+      <section class="page">
+        <h2>1 · La pistà ad grass</h2>
+        <div class="big">🔪</div>
+        <p>È il profumo della cucina piacentina: lardo battuto a coltello insieme ad aglio e prezzemolo.</p>
+        <p>Metti il lardo sul tagliere con l'aglio sbucciato e il prezzemolo, e batti a lungo con un coltello pesante, finché diventa una crema.</p>
+        <p>Intanto trita la cipolla e taglia carote e peperoni a dadini piccoli.</p>
+        <div class="tip"><b>A coltello:</b> il frullatore scalda il lardo e lo rovina. Qui serve solo pazienza.</div>
+        <div class="num">4</div>
+      </section>
+
+      <section class="page">
+        <h2>2 · Il soffritto</h2>
+        <div class="big">🧅 🥕</div>
+        <p>In un tegame largo scalda un filo d'olio con la pistà ad grass, a fuoco basso, finché il lardo si scioglie.</p>
+        <p>Aggiungi la cipolla e le carote e falle appassire dolcemente per una decina di minuti, senza farle colorire troppo.</p>
+        <div class="tip"><b>Il tegame giusto:</b> di coccio o dal fondo spesso, perché la cottura deve essere lenta e uniforme.</div>
+        <div class="num">5</div>
+      </section>
+
+      <section class="page">
+        <h2>3 · La carne</h2>
+        <div class="big">🥩 🍷</div>
+        <p>Alza il fuoco e unisci la carne macinata. Sgranala con un cucchiaio di legno e falla rosolare finché cambia colore.</p>
+        <p>Bagna con il vino bianco e lascialo evaporare.</p>
+        <p>Aggiungi i peperoni e la passata, sala, pepa e abbassa il fuoco.</p>
+        <div class="num">6</div>
+      </section>
+
+      <section class="page">
+        <h2>4 · La cottura e la tavola</h2>
+        <div class="big">⏳</div>
+        <p>Copri e lascia sobbollire per circa un'ora, mescolando ogni tanto. Se asciuga troppo, aggiungi un mestolo di acqua calda o di brodo.</p>
+        <p>La picula è pronta quando è scura, morbida e il suo sugo è ristretto.</p>
+        <p>Servila bollente su una polenta morbida, oppure con fette di polenta abbrustolita.</p>
+        <div class="tip"><b>Nel bicchiere:</b> un rosso dei Colli Piacentini, come il Gutturnio.</div>
+        <div class="num">7</div>
+      </section>
+
+      <section class="page cover">
+        <div class="big">🍽️</div>
+        <h1 style="font-size:2.6em">Buon appetito!</h1>
+        <div class="sub">La picula 'd caval è pronta</div>
+        <a class="btn" id="back2" href="./index.html">← Torna alla realtà aumentata</a>
+      </section>
+
+    </div>
+  </div>
+
+  <div id="nav">
+    <button id="prev" aria-label="Pagina precedente">‹</button>
+    <span id="count"></span>
+    <button id="next" aria-label="Pagina successiva">›</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var framed = window.self !== window.top;
+  if (framed) {
+    document.body.classList.add('framed');
+    document.getElementById('back2').style.display = 'none';
+  }
+
+  var book = document.getElementById('book');
+  var area = document.getElementById('stageArea');
+  var pages = Array.prototype.slice.call(book.querySelectorAll('.page'));
+  var prev = document.getElementById('prev'), next = document.getElementById('next'), count = document.getElementById('count');
+  var cur = 0, RATIO = 0.68;
+
+  pages.forEach(function (p, i) { p.style.zIndex = pages.length - i; });
+
+  function size() {
+    var w = Math.min(area.clientWidth * 0.92, (area.clientHeight - 12) * RATIO, 560);
+    book.style.width = w + 'px';
+    book.style.height = (w / RATIO) + 'px';
+    book.style.fontSize = (w / 23) + 'px';      // tutto il testo scala con la pagina
+  }
+
+  function show() {
+    pages.forEach(function (p, i) { p.classList.toggle('turned', i < cur); });
+    prev.disabled = cur === 0;
+    next.disabled = cur === pages.length - 1;
+    count.textContent = (cur + 1) + ' / ' + pages.length;
+  }
+  function go(d) {
+    var n = Math.max(0, Math.min(pages.length - 1, cur + d));
+    if (n !== cur) { cur = n; show(); }
+  }
+
+  prev.addEventListener('click', function () { go(-1); });
+  next.addEventListener('click', function () { go(1); });
+
+  /* tocco a destra/sinistra della pagina e scorrimento con il dito */
+  var x0 = null, y0 = null;
+  book.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  book.addEventListener('touchend', function (e) {
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy)) { go(dx < 0 ? 1 : -1); swiped = true; }
+    x0 = null;
+  }, { passive: true });
+  var swiped = false;
+  book.addEventListener('click', function (e) {
+    if (swiped) { swiped = false; return; }
+    if (e.target.closest('a')) return;
+    var r = book.getBoundingClientRect();
+    go(e.clientX > r.left + r.width / 2 ? 1 : -1);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') go(1);
+    if (e.key === 'ArrowLeft') go(-1);
+  });
+
+  window.addEventListener('resize', size);
+  window.addEventListener('orientationchange', function () { setTimeout(size, 200); });
+  size(); show();
+})();
+</script>
+</body>
+</html>
